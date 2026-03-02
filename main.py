@@ -1,8 +1,8 @@
 import telebot
 from telebot import types
 
-# ===== TOKEN, ADMIN va guruhlar =====
-TOKEN = "8075390745:AAGiL92F4y_8fZ1vG08RxB82Ry8y5RYWx6o"
+import os
+TOKEN = os.getenv("TOKEN")
 ADMIN_ID = 2092515567
 GROUP_CHAT_IDS = [-1003680070293, -5225264839]  # Bir nechta guruh ID
 CHANNEL_USERNAME = "@Qorakoltalimmarkazi"
@@ -221,4 +221,5 @@ def handle_result(call):
 
 # ===== Botni ishga tushirish =====
 print("Bot ishga tushdi")
+
 bot.infinity_polling()
