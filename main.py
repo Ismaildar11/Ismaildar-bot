@@ -18,6 +18,10 @@ MENU_BUTTONS = [
 ]
 user_state = {}
 
+@bot.message_handler(func=lambda message: True)
+def get_chat_id(message):
+    chat_id = message.chat.id
+    bot.reply_to(message, f"Guruh yoki chat ID: {chat_id}")
 # ===== /start komandasi =====
 @bot.message_handler(commands=['start'])
 def start_message(message):
@@ -223,3 +227,4 @@ def handle_result(call):
 print("Bot ishga tushdi")
 
 bot.infinity_polling()
+
