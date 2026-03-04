@@ -202,12 +202,11 @@ def receive_task(message):
 def handle_result(call):
     data_parts = call.data.split("_")
     target_id = int(data_parts[1])
-    first_name = data_parts[2]  # callback_data’dan olindi
+    first_name = data_parts[2]
 
     if call.data.startswith("correct_"):
         bot.send_message(target_id, "✅ Sizning javobingiz to‘g‘ri. Ofaring!")
 
-        # Guruhlar bo‘yicha tekshirish va yuborish
         for group_id in GROUP_CHAT_IDS:
             try:
                 status = bot.get_chat_member(group_id, target_id).status
@@ -217,13 +216,15 @@ def handle_result(call):
                 pass
     else:
         bot.send_message(target_id, "❌ Javob noto‘g‘ri. Takror bajaring!")
-        
-        bot.answer_callback_query(call.id, "✅ Xabar yuborildi")
+
+    bot.answer_callback_query(call.id, "✅ Xabar yuborildi")
+    bot.send_message(admin_id, "✅ Tekshirldi")
 
 # ===== Botni ishga tushirish =====
 print("Bot ishga tushdi")
 
 bot.infinity_polling()
+
 
 
 
