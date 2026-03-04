@@ -221,13 +221,14 @@ def handle_result(call):
     bot.answer_callback_query(call.id, "✅Xabar yuborildi.✅")
     bot.send_message(
         Admin.id,
-        "✅Tekshirildi✅.",
+        "✅Tekshirildi✅.")
         reply_markup=markup
 
 # ===== Botni ishga tushirish =====
 print("Bot ishga tushdi")
 
 bot.infinity_polling()
+
 
 
 
