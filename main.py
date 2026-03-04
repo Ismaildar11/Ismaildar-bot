@@ -218,16 +218,18 @@ def handle_result(call):
     else:
         bot.send_message(target_id, "❌ Javob noto‘g‘ri. Takror bajaring!")
 
-    bot.answer_callback_query(call.id, "✅Xabar yuborildi.✅")
-    bot.send_message(
-        Admin.id,
-        "✅Tekshirildi✅.",
-        reply_markup=markup)
+   bot.answer_callback_query(call.id, "✅ Xabar yuborildi")
+
+   bot.send_message(
+       Admin.id,
+       "✅ Tekshirildi",
+       reply_markup=markup)
 
 # ===== Botni ishga tushirish =====
 print("Bot ishga tushdi")
 
 bot.infinity_polling()
+
 
 
 
