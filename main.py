@@ -4,7 +4,7 @@ from telebot import types
 import os
 TOKEN = os.getenv("TOKEN")
 ADMIN_ID = 2092515567
-GROUP_CHAT_IDS = [-1003680070293, -5225264839, -1003571310711]  # Bir nechta guruh ID
+GROUP_CHAT_IDS = [-1003680070293, -5225264839, -1003571310711, -1003720457902]  # Bir nechta guruh ID
 CHANNEL_USERNAME = "@Qorakoltalimmarkazi"
 CHANNEL_LINK = "https://t.me/Qorakoltalimmarkazi"
 
@@ -219,10 +219,15 @@ def handle_result(call):
         bot.send_message(target_id, "❌ Javob noto‘g‘ri. Takror bajaring!")
 
     bot.answer_callback_query(call.id, "✅Xabar yuborildi.✅")
+    bot.send_message(
+        Admin.id,
+        "✅Tekshirildi✅.",
+        reply_markup=markup
 
 # ===== Botni ishga tushirish =====
 print("Bot ishga tushdi")
 
 bot.infinity_polling()
+
 
 
