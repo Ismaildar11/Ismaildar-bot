@@ -217,13 +217,14 @@ def handle_result(call):
                 pass
     else:
         bot.send_message(target_id, "❌ Javob noto‘g‘ri. Takror bajaring!")
-
-   bot.answer_callback_query(call.id, "✅ Xabar yuborildi")
+        
+        bot.answer_callback_query(call.id, "✅ Xabar yuborildi")
 
 # ===== Botni ishga tushirish =====
 print("Bot ishga tushdi")
 
 bot.infinity_polling()
+
 
 
 
