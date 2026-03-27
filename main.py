@@ -3,6 +3,13 @@ from telebot import types
 import time
 import sqlite3
 import threading
+TOKEN = os.getenv("TOKEN")
+ADMIN_ID = 2092515567
+GROUP_CHAT_IDS = [-1003819425342]  # Natija yuboriladigan guruhlar
+CHANNEL_USERNAME = "@Qorakoltalimmarkazi"
+CHANNEL_LINK = "https://t.me/Qorakoltalimmarkazi"
+
+bot = telebot.TeleBot(TOKEN)
 
 conn = sqlite3.connect("Ismaildar.data.db", check_same_thread=False)
 cur = conn.cursor()
