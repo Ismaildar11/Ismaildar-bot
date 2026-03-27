@@ -13,13 +13,11 @@ CHANNEL_LINK = "https://t.me/Qorakoltalimmarkazi"
 
 bot = telebot.TeleBot(TOKEN)
 
+# ===== DATABASE =====
 conn = sqlite3.connect("Ismaildar.data.db", check_same_thread=False)
 cur = conn.cursor()
-conn.commit()
-# user_state['task'] kabi, bu yerda pending_tests[user_id] = test_id
-pending_tests = {}
 
-# Testlar jadvalini avval yarating
+# Testlar
 cur.execute('''
 CREATE TABLE IF NOT EXISTS tests(
     test_id TEXT PRIMARY KEY,
@@ -29,7 +27,7 @@ CREATE TABLE IF NOT EXISTS tests(
 )
 ''')
 
-# Natijalar jadvali
+# Natijalar
 cur.execute('''
 CREATE TABLE IF NOT EXISTS results(
     user_id INTEGER,
@@ -41,15 +39,6 @@ CREATE TABLE IF NOT EXISTS results(
 ''')
 conn.commit()
 
-# Endi test_type ustunini qo‘shish
-cur.execute("PRAGMA table_info(tests)")
-columns = [col[1] for col in cur.fetchall()]
-
-if "test_type" not in columns:
-    cur.execute("ALTER TABLE tests ADD COLUMN test_type TEXT DEFAULT 'open'")
-    conn.commit()
-user_waiting_photo = {}   # talaba rasm yuborishini kutish
-pending_tests = {}        # ruxsatdan keyin start qilish uchun
 user_state = {}
 
 # ===== OBUNA TEKSHIRISH =====
@@ -103,7 +92,7 @@ def add_test_menu(msg):
 def get_test_id(msg):
     test_id = msg.text.strip()
     bot.send_message(msg.chat.id, "Test matnini yoki rasm yuboring:")
-    bot.register_next_step_handler(msg, get_test_content, test_id)
+    bot.register_next_step_handler  (msg, get_test_content, test_id)
 
 def get_test_content(msg, test_id):
     if msg.content_type == 'photo':
@@ -114,6 +103,7 @@ def get_test_content(msg, test_id):
     bot.send_message(msg.chat.id, "Javob kalitini kiriting (masalan: abcdabcd)")
     bot.register_next_step_handler(msg, save_test, test_id, content)
 
+def save_test(msg, test_id, content):
     answer_key = msg.text.strip().lower()
     cur.execute(
         "INSERT OR REPLACE INTO tests(test_id, content, answer_key, duration) VALUES(?,?,?,?)",
@@ -121,7 +111,6 @@ def get_test_content(msg, test_id):
     )
     conn.commit()
     bot.send_message(msg.chat.id, f"✅ Test saqlandi: {test_id}")
-
 # ===== TALABA: TEST MENYU =====
 @bot.message_handler(func=lambda m: m.text == "♻️TEST♻️")
 def test_menu(msg):
@@ -131,153 +120,35 @@ def test_menu(msg):
     bot.send_message(msg.chat.id, "🔐Test ID kiriting:")
     bot.register_next_step_handler(msg, start_test)
 
+
+
 def start_test(msg):
     test_id = msg.text.strip()
-    user_id = msg.chat.id
-
-    cur.execute("SELECT content, answer_key, duration, test_type FROM tests WHERE test_id=?", (test_id,))
+    cur.execute("SELECT content, answer_key, duration FROM tests WHERE test_id=?", (test_id,))
     data = cur.fetchone()
     if not data:
-        bot.send_message(user_id, "❌ Test topilmadi")
+        bot.send_message(msg.chat.id, "❌Bunday Test ID topilmadi❌")
         return
+    content, answer_key, duration = data
 
-    content, answer_key, duration, test_type = data
-
-    # Foydalanuvchi oldin ishlaganmi
-    cur.execute("SELECT * FROM results WHERE user_id=? AND test_id=?", (user_id, test_id))
-    old = cur.fetchone()
-
-    # Agar yopiq test yoki open test ikkinchi urinish bo‘lsa
-    if test_type == "closed" or (test_type == "open" and old):
-        # Agar ruxsat berilgan bo‘lsa
-        if pending_tests.get(user_id) == test_id:
-            # Ruxsat berilgan, boshlashga ruxsat
-            pending_tests.pop(user_id)
-        else:
-            send_permission_request(user_id, msg.from_user.first_name, test_id)
-            return
-
-    # ===== TESTNI BOSHLASH =====
-    bot.send_message(user_id, f"⏳ Test boshlandi\nVaqt: {duration} minut")
+    bot.send_message(msg.chat.id, f"⏳Test boshlandi\nVaqt: {duration} minut")
     if content.startswith("photo:"):
-        bot.send_photo(user_id, content.split(":")[1])
+        bot.send_photo(msg.chat.id, content.split(":")[1])
     else:
-        bot.send_message(user_id, content)
+        bot.send_message(msg.chat.id, content)
 
-    bot.send_message(user_id, "Javoblaringizni yuboring (masalan: abcdabcd)")
+    bot.send_message(msg.chat.id, "📝Javoblaringizni yuboring (masalan: abcdabcd)")
 
-    start_time = time.time()
-
-    # 5 minut eslatma
-    if duration > 5:
-        def reminder():
-            time.sleep((duration - 5) * 60)
-            bot.send_message(user_id, "⏰ 5 minut qoldi")
-        threading.Thread(target=reminder).start()
-
-    # vaqt tugashi
+    # Start timer
     def time_up():
-        user_state[user_id] = "time_up"
-        bot.send_message(user_id, "⏰ Vaqt tugadi!")
+        bot.send_message(msg.chat.id, "⏰Vaqt tugadi! Javob yuborish endi mumkin emas‼️")
+        user_state[msg.chat.id] = "time_up"
 
-    timer = threading.Timer(duration * 60, time_up)
+    timer = threading.Timer(duration * 30, time_up)
     timer.start()
 
+    # Javoblarni qabul qilish
     bot.register_next_step_handler(msg, check_answers, test_id, answer_key, timer)
-
-def send_permission_request(user_id, first_name, test_id):
-    markup = types.InlineKeyboardMarkup(row_width=1)
-    markup.add(
-        types.InlineKeyboardButton("✅ Ruxsat berish", callback_data=f"allow_{user_id}_{test_id}_{first_name}"),
-        types.InlineKeyboardButton("❌ Rad etish", callback_data=f"deny_{user_id}_{test_id}"),
-        types.InlineKeyboardButton("✉️ Javob yozish", callback_data=f"reply_{user_id}")
-    )
-
-    text = (
-        f"📍 Talaba: <a href='tg://user?id={user_id}'>{first_name}</a>\n"
-        f"🧪 Test ID: {test_id}\n"
-        "Ruxsat so‘radi"
-    )
-
-    bot.send_message(ADMIN_ID, text, reply_markup=markup, parse_mode='HTML')
-
-    bot.send_message(user_id, "📩So'rovga javob kutilmoqda")
-
-def forward_to_student(msg, target_id):
-    if msg.content_type == 'text':
-        bot.send_message(target_id, f"♻️Test Ruxsat olish uchun:\n{msg.text}")
-
-    # 🔥 Talabadan rasm kutamiz
-    user_waiting_photo[target_id] = True
-
-    bot.send_message(target_id, "📷 Endi 1 ta rasm yuboring")
-    bot.send_message(msg.chat.id, "✅ Yuborildi, rasm kutilyapti")
-@bot.message_handler(content_types=['photo'])
-def receive_student_photo(message):
-    user_id = message.chat.id
-
-    if not user_waiting_photo.get(user_id):
-        return
-
-    # 1 ta rasm qabul qilamiz
-    user_waiting_photo.pop(user_id, None)
-
-    bot.send_message(user_id, "⏳ Ruxsat kutilmoqda")
-# Adminga yuboramiz
-    markup = types.InlineKeyboardMarkup(row_width=1)
-    markup.add(
-        types.InlineKeyboardButton("✅ Ruxsat berish", callback_data=f"allow2_{user_id}"),
-        types.InlineKeyboardButton("❌ Rad etish", callback_data=f"deny2_{user_id}")
-    )
-
-    bot.send_photo(
-        ADMIN_ID,
-        message.photo[-1].file_id,
-        caption=f"📷 Talaba 🆔 {user_id} rasm yubordi",
-        reply_markup=markup
-    )
-
-@bot.callback_query_handler(func=lambda call: call.data.startswith(("allow_", "deny_")))
-def handle_permission(call):
-    data = call.data.split("_")
-    action = data[0]
-    user_id = int(data[1])
-    test_id = data[2]
-
-    if action == "allow":
-        # Foydalanuvchiga ruxsat berdik → pending_tests ga qo‘shamiz
-        pending_tests[user_id] = test_id
-        bot.send_message(user_id, f"✅ Sizga {test_id} testni ishlashga ruxsat berildi.\nID ni qayta yuboring")
-
-    else:
-        bot.send_message(user_id, "❌ Sizga test ishlashga ruxsat berilmadi")
-
-    bot.send_message(call.from_user.id, "✅ Amal bajarildi")
-
-@bot.message_handler(commands=['type'])
-def set_type(msg):
-    if msg.chat.id != ADMIN_ID:
-        return
-
-    bot.send_message(msg.chat.id, "Test ID kiriting:")
-    bot.register_next_step_handler(msg, get_test_type_id)
-
-def get_test_type_id(msg):
-    test_id = msg.text.strip()
-    bot.send_message(msg.chat.id, "Turini kiriting (open / closed):")
-    bot.register_next_step_handler(msg, save_test_type, test_id)
-
-def save_test_type(msg, test_id):
-    t = msg.text.strip().lower()
-
-    if t not in ["open", "closed"]:
-        bot.send_message(msg.chat.id, "❌ Faqat open yoki closed")
-        return
-
-    cur.execute("UPDATE tests SET test_type=? WHERE test_id=?", (t, test_id))
-    conn.commit()
-
-    bot.send_message(msg.chat.id, f"✅ {test_id} testi {t} bo‘ldi")
 
 def check_answers(msg, test_id, answer_key, timer):
     if user_state.get(msg.chat.id) == "time_up":
@@ -340,6 +211,7 @@ def set_test_time(msg):
     bot.send_message(msg.chat.id, "⏳ O'zgartirmoqchi bo'lgan test ID kiriting:")
     bot.register_next_step_handler(msg, get_test_id_for_time)
 
+def get_test_id_for_time(msg):
     test_id = msg.text.strip()
     cur.execute("SELECT test_id FROM tests WHERE test_id=?", (test_id,))
     if not cur.fetchone():
@@ -347,7 +219,6 @@ def set_test_time(msg):
         return
     bot.send_message(msg.chat.id, "⏳ Test uchun vaqt (minutlarda) kiriting:")
     bot.register_next_step_handler(msg, save_test_time, test_id)
-
 def save_test_time(msg, test_id):
     try:
         duration = int(msg.text.strip())
@@ -446,16 +317,14 @@ def reply_to_student(call):
 
     # Keyingi xabar admindan kelganini talabaga yuborish
     bot.register_next_step_handler_by_chat_id(call.from_user.id, forward_to_student, target_id)
-# ===== TOPSHIRIQ MENYUSI =====
-def forward_task_to_student(msg, target_id):
+
+def forward_to_student(msg, target_id):
     if msg.content_type == 'text':
-        bot.send_message(target_id, f"📩 Topshirig'ingiz bo'yicha xabar keldi:\n{msg.text}")
+        bot.send_message(target_id, f"📩Topshirig'ingiz bo'yicha xabar keldi:\n{msg.text}")
     elif msg.content_type == 'photo':
-        bot.send_photo(target_id, msg.photo[-1].file_id, caption="📩 Topshirig'ingiz bo'yicha xabar keldi")
-    elif msg.content_type == 'document':
-        bot.send_document(target_id, msg.document.file_id, caption="📩 Topshirig'ingiz bo'yicha xabar keldi")
+        bot.send_photo(target_id, msg.photo[-1].file_id, caption="📩Topshirig'ingiz bo'yicha xabar keldi")
     else:
-        bot.send_message(target_id, "📩 Topshirig'ingiz bo'yicha xabar keldi")
+        bot.send_message(target_id, "📩Topshirig'ingiz bo'yicha xabar keldi")
 
     bot.send_message(msg.chat.id, f"✅ Xabar talabaga yuborildi (🆔 {target_id})")
 @bot.callback_query_handler(func=lambda call: call.data.startswith(("correct_", "wrong_")))
@@ -463,7 +332,6 @@ def handle_result(call):
     data_parts = call.data.split("_")
     target_id = int(data_parts[1])
     first_name = data_parts[2]
-
     if call.data.startswith("correct_"):
         # Talabaga xabar
         bot.send_message(target_id, "🥳 Sizning javobingiz to‘g‘ri. Ofaring!👏")
@@ -490,8 +358,3 @@ def handle_result(call):
 
 print("Bot ishga tushdi...")
 bot.infinity_polling()
-
-
-
-
-
