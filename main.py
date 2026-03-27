@@ -7,7 +7,7 @@ import os
 
 TOKEN = os.getenv("BOT_TOKEN")
 ADMIN_ID = 2092515567
-GROUP_CHAT_IDS = [-1005225264839, -1003720457902 -1003819425342, -1003680070293]  # Natija yuboriladigan guruhlar
+GROUP_CHAT_IDS = [-5225264839, -1003720457902, -1003819425342, -1003680070293]  # Natija yuboriladigan guruhlar
 CHANNEL_USERNAME = "@Qorakoltalimmarkazi"
 CHANNEL_LINK = "https://t.me/Qorakoltalimmarkazi"
 
