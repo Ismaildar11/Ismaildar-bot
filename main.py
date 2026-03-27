@@ -2,7 +2,7 @@ import telebot
 from telebot import types
 
 import os
-
+TOKEN = os.getenv("BOT_TOKEN")
 ADMIN_ID = 2092515567
 GROUP_CHAT_IDS = [-1003680070293, -1003720457902, -1003571310711]  # Bir nechta guruh ID
 CHANNEL_USERNAME = "@Qorakoltalimmarkazi"
