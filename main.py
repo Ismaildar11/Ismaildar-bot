@@ -3,6 +3,8 @@ from telebot import types
 import time
 import sqlite3
 import threading
+import os
+
 TOKEN = os.getenv("TOKEN")
 ADMIN_ID = 2092515567
 GROUP_CHAT_IDS = [-1003819425342]  # Natija yuboriladigan guruhlar
