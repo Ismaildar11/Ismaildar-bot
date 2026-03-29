@@ -21,7 +21,7 @@ cur = conn.cursor()
 cur.execute('''
 CREATE TABLE IF NOT EXISTS tests(
     test_id TEXT PRIMARY KEY,
-    content TEXT,
+    content TEXT,   
     answer_key TEXT,
     duration INTEGER
 )
@@ -32,9 +32,13 @@ cur.execute('''
 CREATE TABLE IF NOT EXISTS results(
     user_id INTEGER,
     username TEXT,
+    first_name TEXT,
     test_id TEXT,
     answers TEXT,
-    score REAL
+    score REAL,
+    start_time TEXT,
+    end_time TEXT,
+    duration REAL
 )
 ''')
 conn.commit()
@@ -70,7 +74,8 @@ def check(call):
         # ===== ADMIN MENYU =====
         if user_id == ADMIN_ID:
             markup.add("➕Test qo‘shish")
-            markup.add("📊NATIJALAR📊")  # Admin ham o'z natijalarini ko'rishi mumkin
+            markup.add("📊NATIJALAR📊")
+            markup.add("📋TESTLAR📋")   # Admin ham o'z natijalarini ko'rishi mumkin
         else:
             # ===== TALABA MENYU =====
             markup.add("♻️TEST♻️")
@@ -83,6 +88,7 @@ def check(call):
         bot.send_message(call.message.chat.id, "❌Avval /start tugmasini bosing va kanalga obuna bo‘ling❌")
         bot.answer_callback_query(call.id, "‼️Kanalga obuna bo‘ling‼️")
 
+
 # ===== ADMIN: TEST QO‘SHISH =====
 @bot.message_handler(func=lambda m: m.text == "➕Test qo‘shish" and m.chat.id == ADMIN_ID)
 def add_test_menu(msg):
@@ -91,8 +97,16 @@ def add_test_menu(msg):
 
 def get_test_id(msg):
     test_id = msg.text.strip()
+
+    # 🔍 Bazadan tekshiramiz
+    cur.execute("SELECT test_id FROM tests WHERE test_id=?", (test_id,))
+    if cur.fetchone():
+        bot.send_message(msg.chat.id, "❌ Bunday Test ID allaqachon mavjud. Boshqa ID kiriting:")
+        bot.register_next_step_handler(msg, get_test_id)
+        return
+
     bot.send_message(msg.chat.id, "Test matnini yoki rasm yuboring:")
-    bot.register_next_step_handler  (msg, get_test_content, test_id)
+    bot.register_next_step_handler(msg, get_test_content, test_id)
 
 def get_test_content(msg, test_id):
     if msg.content_type == 'photo':
@@ -102,11 +116,10 @@ def get_test_content(msg, test_id):
         content = msg.text
     bot.send_message(msg.chat.id, "Javob kalitini kiriting (masalan: abcdabcd)")
     bot.register_next_step_handler(msg, save_test, test_id, content)
-
-def save_test(msg, test_id, content):
+[29.03.2026 16:30] Eldor Ismoilov: def save_test(msg, test_id, content):
     answer_key = msg.text.strip().lower()
     cur.execute(
-        "INSERT OR REPLACE INTO tests(test_id, content, answer_key, duration) VALUES(?,?,?,?)",
+        "INSERT INTO tests(test_id, content, answer_key, duration) VALUES(?,?,?,?)",
         (test_id, content, answer_key, 30)
     )
     conn.commit()
@@ -177,8 +190,15 @@ def check_answers(msg, test_id, answer_key, timer):
 
     # Natijani saqlash
     cur.execute(
-        "INSERT INTO results(user_id, username, test_id, answers, score) VALUES(?,?,?,?,?)",
-        (msg.from_user.id, msg.from_user.username, test_id, answers, percent)
+    "INSERT INTO results(user_id, username, first_name, test_id, answers, score) VALUES(?,?,?,?,?,?)",
+    (
+        msg.from_user.id,
+        msg.from_user.username,
+        msg.from_user.first_name,
+        test_id,
+        answers,
+        percent
+    )
     )
     conn.commit()
 
@@ -210,7 +230,6 @@ def set_test_time(msg):
         return
     bot.send_message(msg.chat.id, "⏳ O'zgartirmoqchi bo'lgan test ID kiriting:")
     bot.register_next_step_handler(msg, get_test_id_for_time)
-
 def get_test_id_for_time(msg):
     test_id = msg.text.strip()
     cur.execute("SELECT test_id FROM tests WHERE test_id=?", (test_id,))
@@ -232,8 +251,9 @@ def save_test_time(msg, test_id):
 def results(msg):
 
     # Natijalarni chiqarish
-    cur.execute("SELECT test_id, score FROM results WHERE user_id=?", (msg.from_user.id,))
-    res = cur.fetchall()
+    cursor = conn.cursor()
+    cursor.execute("SELECT test_id, score FROM results WHERE user_id=?", (msg.from_user.id,))
+    res = cursor.fetchall()
 
     # INLINE TUGMALAR
     markup = types.InlineKeyboardMarkup()
@@ -317,7 +337,6 @@ def reply_to_student(call):
 
     # Keyingi xabar admindan kelganini talabaga yuborish
     bot.register_next_step_handler_by_chat_id(call.from_user.id, forward_to_student, target_id)
-
 def forward_to_student(msg, target_id):
     if msg.content_type == 'text':
         bot.send_message(target_id, f"📩Topshirig'ingiz bo'yicha xabar keldi:\n{msg.text}")
@@ -355,6 +374,112 @@ def handle_result(call):
     # Adminga xabar yuborish tugmasi bosilgani haqida
     bot.send_message(call.from_user.id, "✅ Xabar yuborildi ✅")
 
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("delete_"))
+def delete_test(call):
+    test_id = call.data.split("_")[1]
+
+    cur.execute("DELETE FROM tests WHERE test_id=?", (test_id,))
+    conn.commit()
+
+    bot.send_message(call.message.chat.id, f"🗑 Test o‘chirildi: {test_id}")
+    bot.answer_callback_query(call.id, "✅ O‘chirildi")    
+
+print(os.path.abspath("Ismaildar.data.db"))
+
+@bot.callback_query_handler(func=lambda call: call.data == "go_test")
+def test_results_menu(call):
+    if call.from_user.id == ADMIN_ID:
+        bot.send_message(call.message.chat.id, "🔐 Qaysi test ID natijalarini ko‘rmoqchisiz?")
+        bot.register_next_step_handler(call.message, admin_view_test_results)
+    else:
+        # har doim yangi cursor ochamiz
+        cursor = conn.cursor()
+        cursor.execute("SELECT test_id, score FROM results WHERE user_id=?", (call.from_user.id,))
+        data = cursor.fetchall()
+
+        if not data:
+            bot.send_message(call.message.chat.id, "❌ Siz hali test yechmagansiz")
+            return
+
+        text = "📊 Sizning natijalaringiz:\n\n"
+        for i, row in enumerate(data, 1):
+            test_id, score = row
+            text += f"{i}. Test ID: {test_id} — {score}%\n"
+
+        bot.send_message(call.message.chat.id, text)
+        
+@bot.callback_query_handler(func=lambda call: call.data == "go_task")
+def task_results_menu(call):
+    bot.send_message(call.message.chat.id, "📝 Topshiriqlar natijasi hozircha qo‘shilmagan")
+
+def admin_view_test_results(msg):
+    test_id = msg.text.strip()
+
+    # 🔍 first_name bor-yo‘qligini tekshiramiz
+    try:
+        cur.execute("SELECT user_id, username, first_name, score FROM results WHERE test_id=?", (test_id,))
+        data = cur.fetchall()
+        use_first_name = True
+    except:
+        cur.execute("SELECT user_id, username, score FROM results WHERE test_id=?", (test_id,))
+        data = cur.fetchall()
+        use_first_name = False
+
+    if not data:
+        bot.send_message(msg.chat.id, "❌ Bu test bo‘yicha natijalar topilmadi")
+        return
+
+    text = f"📊 Test ID: {test_id}\n\n"
+
+    for i, row in enumerate(data, 1):
+        if use_first_name:
+            user_id, username, first_name, score = row
+            name = username if username else first_name
+        else:
+            user_id, username, score = row
+            name = username if username else "No name"
+            text += f"{i}. <a href='tg://user?id={user_id}'>{name}</a> — {score}%\n"
+
+    bot.send_message(msg.chat.id, text, parse_mode='HTML')
+
+
+
+# 🔹 ADMIN TESTLAR RO'YXATI
+@bot.message_handler(func=lambda m: m.text == "📋TESTLAR📋" and m.chat.id == ADMIN_ID)
+def show_tests(msg):
+    cursor = conn.cursor()
+    cursor.execute("SELECT test_id FROM tests")
+    tests = cursor.fetchall()
+
+    if not tests:
+        bot.send_message(msg.chat.id, "❌ Hech qanday test mavjud emas")
+        return
+
+    markup = types.InlineKeyboardMarkup()
+
+    for t in tests:
+        test_id = t[0]
+        btn = types.InlineKeyboardButton(
+            text=f"🗑 {test_id}",
+            callback_data=f"delete_{test_id}"
+        )
+        markup.add(btn)
+
+    bot.send_message(msg.chat.id, "📋 Testlar ro‘yxati (o‘chirish uchun bosing):", reply_markup=markup)
+
+
+# 🔹 TEST O'CHIRISH
+@bot.callback_query_handler(func=lambda call: call.data.startswith("delete_"))
+def delete_test(call):
+    test_id = call.data.split("_")[1]
+
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM tests WHERE test_id=?", (test_id,))
+    conn.commit()
+
+    bot.answer_callback_query(call.id, "✅ Test o‘chirildi")
+    bot.send_message(call.message.chat.id, f"🗑 Test o‘chirildi: {test_id}")
 
 print("Bot ishga tushdi...")
 bot.infinity_polling()
