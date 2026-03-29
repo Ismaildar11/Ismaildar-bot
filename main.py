@@ -37,7 +37,17 @@ CREATE TABLE IF NOT EXISTS tests(
 )
 ''')
 
-# Natijalar
+# Testlar jadvalini avval yaratish
+cur.execute('''
+CREATE TABLE IF NOT EXISTS tests(
+    test_id TEXT PRIMARY KEY,
+    content TEXT,
+    answer_key TEXT,
+    duration INTEGER
+)
+''')
+
+# Natijalar jadvali
 cur.execute('''
 CREATE TABLE IF NOT EXISTS results(
     user_id INTEGER,
@@ -48,6 +58,14 @@ CREATE TABLE IF NOT EXISTS results(
 )
 ''')
 conn.commit()
+
+# Keyin kolonkani tekshirish va qo‘shish
+cur.execute("PRAGMA table_info(tests)")
+columns = [col[1] for col in cur.fetchall()]
+
+if "test_type" not in columns:
+    cur.execute("ALTER TABLE tests ADD COLUMN test_type TEXT DEFAULT 'open'")
+    conn.commit()
 user_waiting_photo = {}   # talaba rasm yuborishini kutish
 pending_tests = {}        # ruxsatdan keyin start qilish uchun
 user_state = {}
