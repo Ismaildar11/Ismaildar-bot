@@ -228,7 +228,7 @@ def save_test_time(msg, test_id):
     except ValueError:
         bot.send_message(msg.chat.id, "❌ Iltimos, butun son kiriting")
 
-@bot.message_handler(func=lambda m: m.text in ["📊Natijalar"])
+@bot.message_handler(func=lambda m: m.text == "📊NATIJALAR📊")
 def results(msg):
 
     # Natijalarni chiqarish
