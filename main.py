@@ -385,7 +385,7 @@ def delete_test(call):
     bot.send_message(call.message.chat.id, f"🗑 Test o‘chirildi: {test_id}")
     bot.answer_callback_query(call.id, "✅ O‘chirildi")    
 
-print(os.path.abspath("Ismaildar.data.db"))
+
 
 @bot.callback_query_handler(func=lambda call: call.data == "go_test")
 def test_results_menu(call):
