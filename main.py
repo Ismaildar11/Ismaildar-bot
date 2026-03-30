@@ -5,9 +5,9 @@ import sqlite3
 import threading
 import os
 
-TOKEN = os.getenv("BOT_TOKEN")
+TOKEN = os.getenv("")
 ADMIN_ID = 2092515567
-GROUP_CHAT_IDS = [-5225264839, -1003720457902, -1003819425342, -1003680070293]  # Natija yuboriladigan guruhlar
+GROUP_CHAT_IDS = [-5225264839, -1003720457902, -1003819425342, -1003680070293]  #  yuboriladigan guruhlar
 CHANNEL_USERNAME = "@Qorakoltalimmarkazi"
 CHANNEL_LINK = "https://t.me/Qorakoltalimmarkazi"
 
@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS tests(
 )
 ''')
 
-# Natijalar jadvali
+# lar jadvali
 cur.execute('''
 CREATE TABLE IF NOT EXISTS results(
     user_id INTEGER,
@@ -99,12 +99,12 @@ def check(call):
         # ===== ADMIN MENYU =====
         if user_id == ADMIN_ID:
             markup.add("➕Test qo‘shish")
-            markup.add("📊NATIJALAR📊")  # Admin ham o'z natijalarini ko'rishi mumkin
+            markup.add("📊LAR📊")  # Admin ham o'z larini ko'rishi mumkin
         else:
             # ===== TALABA MENYU =====
             markup.add("♻️TEST♻️")
             markup.add("📝TOPSHIRIQLAR📝")
-            markup.add("📊NATIJALAR📊")
+            markup.add("📊LAR📊")
         
         bot.send_message(call.message.chat.id, "Menyuni tanlang:", reply_markup=markup)
         bot.answer_callback_query(call.id, "✅Tasdiqlandi✅")
@@ -318,9 +318,9 @@ def check_answers(msg, test_id, answer_key, timer):
 
     percent = round(score / len(answer_key) * 100, 2)
     bot.send_message(msg.chat.id, "\n".join(details))
-    bot.send_message(msg.chat.id, f"📊 Natija: {percent}%")
+    bot.send_message(msg.chat.id, f"📊 : {percent}%")
 
-    # Natijani saqlash
+    # ni saqlash
     cur.execute(
         "INSERT INTO results(user_id, username, test_id, answers, score) VALUES(?,?,?,?,?)",
         (msg.from_user.id, msg.from_user.username, test_id, answers, percent)
@@ -332,18 +332,18 @@ def check_answers(msg, test_id, answer_key, timer):
         for group_id in GROUP_CHAT_IDS:
             text = (
                 f"👑 Talaba: <a href='tg://user?id={msg.from_user.id}'>{msg.from_user.first_name}</a>\n"
-                f"🏆 Testdan natija: {percent}%\n"
+                f"🏆 Testdan : {percent}%\n"
                 "🥳 Tantanali tarzda tabriklaymiz! Ofarin!👏"
             )
             bot.send_message(group_id, text, parse_mode='HTML')
 
-    # Adminga natija
+    # Adminga 
     bot.send_message(
         ADMIN_ID,
-        f"📌 Natija talaba: <a href='tg://user?id={msg.from_user.id}'>{msg.from_user.first_name}</a>\n"
+        f"📌  talaba: <a href='tg://user?id={msg.from_user.id}'>{msg.from_user.first_name}</a>\n"
         f"Test ID: {test_id}\n"
         f"Javoblar: {answers}\n"
-        f"Natija: {percent}%",
+        f": {percent}%",
         parse_mode='HTML'
     )
 
@@ -372,18 +372,18 @@ def save_test_time(msg, test_id):
     except ValueError:
         bot.send_message(msg.chat.id, "❌ Iltimos, butun son kiriting")
 
-@bot.message_handler(func=lambda m: m.text in ["📊Natijalar"])
+@bot.message_handler(func=lambda m: m.text in ["📊lar"])
 def results(msg):
 
-    # Natijalarni chiqarish
+    # larni chiqarish
     cur.execute("SELECT test_id, score FROM results WHERE user_id=?", (msg.from_user.id,))
     res = cur.fetchall()
 
     # INLINE TUGMALAR
     markup = types.InlineKeyboardMarkup()
 
-    btn1 = types.InlineKeyboardButton("♻️Test natijalari♻️", callback_data="go_test")
-    btn2 = types.InlineKeyboardButton("📝Topshiriq natijalari📝", callback_data="go_task")
+    btn1 = types.InlineKeyboardButton("♻️Test lari♻️", callback_data="go_test")
+    btn2 = types.InlineKeyboardButton("📝Topshiriq lari📝", callback_data="go_task")
 
     markup.add(btn1)
     markup.add(btn2)
